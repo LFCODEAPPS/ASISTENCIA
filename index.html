@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control de Asistencia</title>
+    
+    <link rel="apple-touch-icon" href="icono.png">
+    <link rel="icon" type="image/png" href="icono.png">
+
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --subtext-color: #555555;
+            --border-color: #e0e0e0;
+            --history-bg: #fdfdfd;
+            --item-border: #eee;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #f1f1f1;
+            --subtext-color: #aaaaaa;
+            --border-color: #333333;
+            --history-bg: #252525;
+            --item-border: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 90vh;
+            transition: background 0.3s ease, color 0.3s ease;
+            touch-action: manipulation;
+            -webkit-text-size-adjust: 100%;
+        }
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            position: relative;
+            transition: background 0.3s ease;
+        }
+        
+        .header-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 25px;
+            padding-top: 5px;
+        }
+        .company-logo {
+            position: absolute;
+            left: 0;
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 2px;
+        }
+        .header-titles {
+            text-align: center;
+            width: 100%;
+            padding-left: 50px;
+            padding-right: 40px;
+        }
+        .company-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: #1a365d;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+        [data-theme="dark"] .company-title { color: #90cdf4; }
+
+        .app-subtitle {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--subtext-color);
+            margin: 4px 0 0 0;
+        }
+
+        .settings-btn {
+            position: absolute;
+            right: 0;
+            top: 5px;
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        .settings-btn:hover { background: rgba(0,0,0,0.05); }
+
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s ease;
+            margin-bottom: 10px;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .btn-secondary {
+            background-color: #dc3545;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .btn-secondary:hover { background-color: #c82333; }
+        .btn-database {
+            background-color: #28a745;
+            padding: 14px;
+            font-size: 16px;
+        }
+        .btn-database:hover { background-color: #218838; }
+        .btn-employees {
+            background-color: #6f42c1;
+            padding: 14px;
+            font-size: 16px;
+        }
+        .btn-employees:hover { background-color: #5a32a3; }
+        .btn-reload {
+            background-color: #6c757d;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .btn-reload:hover { background-color: #5a6268; }
+        .btn-dni-mode {
+            background-color: #17a2b8;
+            padding: 14px;
+            font-size: 16px;
+        }
+        .btn-dni-mode:hover { background-color: #117a8b; }
+        
+        #scanner-container, #database-screen, #employees-screen, #manual-dni-screen {
+            display: none;
+            margin-top: 15px;
+        }
+        video {
+            width: 100%;
+            max-height: 320px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #007bff;
+            margin-bottom: 10px;
+        }
+        .alert {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+            font-weight: bold;
+            font-size: 15px;
+            white-space: pre-line;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .history-container {
+            margin-top: 25px;
+            background: var(--history-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: left;
+            transition: background 0.3s ease, border 0.3s ease;
+        }
+        .history-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: var(--text-color);
+            margin-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-item {
+            font-size: 14px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--item-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-name {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        .history-time {
+            color: var(--subtext-color);
+            font-size: 12px;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        .dni-input {
+            width: 100%;
+            padding: 14px;
+            font-size: 18px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            text-align: center;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            padding: 25px;
+            border-radius: 12px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 { margin-top: 0; color: #007bff; }
+        .modal-btn {
+            background-color: #f1f1f1;
+            color: #333;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .modal-btn:hover { background-color: #e0e0e0; }
+        [data-theme="dark"] .modal-btn { background-color: #333; color: #fff; }
+        [data-theme="dark"] .modal-btn:hover { background-color: #444; }
+
+        .iframe-wrapper {
+            width: 100%;
+            height: 60vh;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+            margin-bottom: 15px;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div class="container">
+        <div class="header-box">
+            <img src="icono.png" alt="Logo" class="company-logo">
+            <div class="header-titles">
+                <h1 class="company-title">CENTRO MÉDICO INTEGRAL SANTA CELIA</h1>
+                <p class="app-subtitle">Control de asistencia</p>
+            </div>
+            <button class="settings-btn" onclick="abrirConfiguracion()" title="Configuración">⚙️</button>
+        </div>
+        
+        <div id="home-screen">
+            <button class="btn" onclick="iniciarEscanner()">⚡ Iniciar control de asistencia</button>
+            <button class="btn btn-dni-mode" onclick="mostrarPantallaDni()">🆔 Registrar con DNI</button>
+            <button class="btn btn-database" onclick="mostrarBaseDatos()">📊 Ver base todas las asistencias</button>
+            <button class="btn btn-employees" onclick="mostrarEmpleados()">👥 Ver lista de empleados</button>
+
+            <div class="history-container">
+                <div class="history-title">
+                    ⏱️ Últimos Escaneos
+                </div>
+                <ul class="history-list" id="historyList"></ul>
+            </div>
+        </div>
+
+        <div id="scanner-container">
+            <video id="video" muted playsinline></video>
+            <button class="btn btn-secondary" onclick="detenerEscanner()">Cerrar Cámara</button>
+        </div>
+
+        <div id="manual-dni-screen">
+            <p style="font-weight: bold; margin-bottom: 10px;">Ingrese el DNI del empleado:</p>
+            <input type="tel" id="inputDniManual" class="dni-input" placeholder="Ej. 76907675" maxlength="12">
+            <button class="btn" onclick="registrarDniManual()">Registrar DNI</button>
+            <button class="btn btn-secondary" onclick="ocultarPantallaDni()">Volver al Inicio</button>
+        </div>
+
+        <div id="database-screen">
+            <p style="color: #dc3545; font-weight: bold; font-size: 15px; margin-bottom: 10px;">
+                Recarga la página para ver los últimos registros
+            </p>
+            <button class="btn btn-reload" style="margin-bottom: 20px;" onclick="location.reload()">🔄 Recargar Página</button>
+
+            <div class="iframe-wrapper">
+                <iframe src="https://docs.google.com/spreadsheets/d/1_0czLR8rQ6fCKBQenhJnIsKqgg2GybmPdwlfLwMvHSM/htmlembed?gid=0&widget=false&chrome=false" title="Base de Datos Asistencia"></iframe>
+            </div>
+            <button class="btn btn-secondary" onclick="ocultarBaseDatos()">Volver al Inicio</button>
+        </div>
+
+        <div id="employees-screen">
+            <div class="iframe-wrapper">
+                <iframe src="https://docs.google.com/spreadsheets/d/1_0czLR8rQ6fCKBQenhJnIsKqgg2GybmPdwlfLwMvHSM/htmlembed?gid=1547143312&widget=false&chrome=false" title="Lista de Empleados"></iframe>
+            </div>
+            <button class="btn btn-secondary" onclick="ocultarEmpleados()">Volver al Inicio</button>
+        </div>
+        
+        <div id="alertBox" class="alert"></div>
+
+        <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <h3>⚙️ Configuración</h3>
+            <button class="modal-btn" id="btnThemeToggle" onclick="alternarModoOscuro()">🌙 Cambiar a Modo Oscuro</button>
+            <button class="modal-btn" onclick="verInfoApp()">ℹ️ Info de la app</button>
+            <button class="modal-btn" style="background-color: #dc3545; color: white;" onclick="cerrarConfiguracion()">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        let ultimoToque = 0;
+        document.addEventListener('touchend', function (event) {
+            let tiempoActual = new Date().getTime();
+            if (tiempoActual - ultimoToque <= 300) {
+                event.preventDefault();
+            }
+            ultimoToque = tiempoActual;
+        }, false);
+
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzgz4qJVb1gpX-GC8CVpVZX3elta8OIn9IT0oWidgPYKSXYXQo3g6-5FuZ8xk1VWzdz/exec";
+        
+        let empleadosMap = {};
+        let codeReader = null;
+        let scanningActive = false;
+        let ultimosEscaneos = {}; 
+
+        window.onload = function() {
+            cargarHistorial();
+            descargarListaEmpleados(); 
+            
+            const savedTheme = localStorage.getItem('theme_mode') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            actualizarTextoBotonTema(savedTheme);
+        };
+
+        function descargarListaEmpleados() {
+            const csvUrl = "https://docs.google.com/spreadsheets/export?format=csv&id=1_0czLR8rQ6fCKBQenhJnIsKqgg2GybmPdwlfLwMvHSM&gid=1547143312";
+            fetch(csvUrl)
+                .then(response => response.text())
+                .then(data => {
+                    const lineas = data.split('\n');
+                    for(let i = 1; i < lineas.length; i++) {
+                        const columnas = lineas[i].split(',');
+                        if(columnas.length >= 2) {
+                            const dni = columnas[0].replace(/["\r]/g, '').trim();
+                            const nombre = columnas[1].replace(/["\r]/g, '').trim();
+                            if(dni) empleadosMap[dni] = nombre;
+                        }
+                    }
+                })
+                .catch(err => console.log("Se usará el DNI temporalmente."));
+        }
+
+        function emitirSonidoYVibracion() {
+            if (navigator.vibrate) {
+                navigator.vibrate(150); 
+            }
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    const ctx = new AudioContext();
+                    const osc = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+                    
+                    osc.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.15);
+                }
+            } catch (e) {
+                console.log("Audio no soportado");
+            }
+        }
+
+        function procesarAsistencia(dniLimpio) {
+            const tiempoActual = Date.now();
+            const nombreMostrar = empleadosMap[dniLimpio] || dniLimpio;
+
+            if (ultimosEscaneos[dniLimpio] && (tiempoActual - ultimosEscaneos[dniLimpio]) < 30000) {
+                showAlert(`❌ ${nombreMostrar}\nYA FUE REGISTRADO`, "error");
+                setTimeout(() => { hideAlert(); }, 2000);
+                return;
+            }
+
+            emitirSonidoYVibracion();
+            ultimosEscaneos[dniLimpio] = tiempoActual;
+
+            showAlert(`⚡ Registrando: ${nombreMostrar}...`, "success");
+            agregarAHistorial(dniLimpio, nombreMostrar);
+
+            const form = document.createElement("form");
+            form.method = "GET";
+            form.action = WEB_APP_URL;
+            form.target = "hidden_iframe";
+
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "dni";
+            input.value = dniLimpio;
+
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            setTimeout(() => {
+                showAlert(`✅ ¡Asistencia Registrada!\n${nombreMostrar}`, "success");
+            }, 500);
+
+            setTimeout(() => {
+                hideAlert();
+            }, 2000);
+        }
+
+        function iniciarEscanner() {
+            document.getElementById("home-screen").style.display = "none";
+            document.getElementById("scanner-container").style.display = "block";
+            hideAlert();
+
+            codeReader = new ZXing.BrowserQRCodeReader();
+
+            codeReader.decodeFromVideoDevice(undefined, 'video', (result, err) => {
+                if (result && scanningActive) {
+                    scanningActive = false; 
+                    procesarAsistencia(result.text.trim());
+                    setTimeout(() => { scanningActive = true; }, 2000);
+                }
+            })
+            .then(() => {
+                scanningActive = true;
+            })
+            .catch(err => {
+                console.error("Error cámara:", err);
+                showAlert("Permisos de cámara denegados.", "error");
+                detenerEscanner();
+            });
+        }
+
+        function detenerEscanner() {
+            scanningActive = false;
+            if (codeReader) {
+                codeReader.reset();
+            }
+            document.getElementById("scanner-container").style.display = "none";
+            document.getElementById("home-screen").style.display = "block";
+            hideAlert();
+        }
+
+        function mostrarPantallaDni() {
+            document.getElementById("home-screen").style.display = "none";
+            document.getElementById("manual-dni-screen").style.display = "block";
+            hideAlert();
+        }
+
+        function ocultarPantallaDni() {
+            document.getElementById("manual-dni-screen").style.display = "none";
+            document.getElementById("home-screen").style.display = "block";
+            document.getElementById("inputDniManual").value = "";
+            hideAlert();
+        }
+
+        function registrarDniManual() {
+            const dniVal = document.getElementById("inputDniManual").value.trim();
+            if(!dniVal) {
+                showAlert("⚠️ Ingresa un DNI válido", "error");
+                return;
+            }
+            procesarAsistencia(dniVal);
+            document.getElementById("inputDniManual").value = "";
+            ocultarPantallaDni();
+        }
+
+        function mostrarBaseDatos() {
+            document.getElementById("home-screen").style.display = "none";
+            document.getElementById("database-screen").style.display = "block";
+        }
+
+        function ocultarBaseDatos() {
+            document.getElementById("database-screen").style.display = "none";
+            document.getElementById("home-screen").style.display = "block";
+        }
+
+        function mostrarEmpleados() {
+            document.getElementById("home-screen").style.display = "none";
+            document.getElementById("employees-screen").style.display = "block";
+        }
+
+        function ocultarEmpleados() {
+            document.getElementById("employees-screen").style.display = "none";
+            document.getElementById("home-screen").style.display = "block";
+        }
+
+        function abrirConfiguracion() {
+            document.getElementById("settingsModal").style.display = "flex";
+        }
+
+        function cerrarConfiguracion() {
+            document.getElementById("settingsModal").style.display = "none";
+        }
+
+        function actualizarTextoBotonTema(theme) {
+            const btn = document.getElementById("btnThemeToggle");
+            if (theme === 'dark') {
+                btn.innerText = "☀️ Cambiar a Modo Claro";
+            } else {
+                btn.innerText = "🌙 Cambiar a Modo Oscuro";
+            }
+        }
+
+        function alternarModoOscuro() {
+            const currentTheme = document.body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme_mode', newTheme);
+            actualizarTextoBotonTema(newTheme);
+        }
+
+        function verInfoApp() {
+            alert("App de control de asistencia");
+        }
+
+        function cargarHistorial() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = ''; 
+            
+            let historial = JSON.parse(localStorage.getItem('historial_qr_asistencia')) || [];
+            
+            if (historial.length === 0) {
+                historyList.innerHTML = '<li class="history-item" style="color:#999; justify-content:center;">No hay escaneos recientes</li>';
+                return;
+            }
+
+            historial.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                const textoMostrar = item.nombre || item.dni; 
+                li.innerHTML = `<span class="history-name">${textoMostrar}</span> <span class="history-time">${item.hora}</span>`;
+                historyList.appendChild(li);
+            });
+        }
+
+        function agregarAHistorial(dni, nombre) {
+            let historial = JSON.parse(localStorage.getItem('historial_qr_asistencia')) || [];
+            const ahora = new Date();
+            const horaStr = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            
+            historial.unshift({ dni: dni, nombre: nombre, hora: horaStr }); 
+            if(historial.length > 15) historial.pop();
+            
+            localStorage.setItem('historial_qr_asistencia', JSON.stringify(historial));
+            cargarHistorial();
+        }
+
+        function showAlert(message, type) {
+            const alertBox = document.getElementById("alertBox");
+            alertBox.innerText = message;
+            alertBox.className = `alert ${type}`;
+            alertBox.style.display = "block";
+        }
+
+        function hideAlert() {
+            document.getElementById("alertBox").style.display = "none";
+        }
+    </script>
+</body>
+</html>
