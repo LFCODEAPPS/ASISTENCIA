@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Control de Asistencia</title>
+    <title>Control de Asistencia - Santa Celia</title>
     
     <link rel="apple-touch-icon" href="icono.png">
     <link rel="icon" type="image/png" href="icono.png">
@@ -56,6 +56,7 @@
             transition: background 0.3s ease;
         }
         
+        /* Encabezado con Logo, Títulos y Configuración */
         .header-box {
             display: flex;
             align-items: center;
@@ -97,6 +98,7 @@
             margin: 4px 0 0 0;
         }
 
+        /* Botón de Ajustes (Engranaje) */
         .settings-btn {
             position: absolute;
             right: 0;
@@ -180,6 +182,7 @@
         .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+        /* Estilos del historial local */
         .history-container {
             margin-top: 25px;
             background: var(--history-bg);
@@ -226,6 +229,7 @@
             margin-left: 10px;
         }
 
+        /* Input DNI manual */
         .dni-input {
             width: 100%;
             padding: 14px;
@@ -239,6 +243,7 @@
             color: var(--text-color);
         }
 
+        /* Modal de Configuración */
         .modal {
             display: none;
             position: fixed;
@@ -277,6 +282,7 @@
         [data-theme="dark"] .modal-btn { background-color: #333; color: #fff; }
         [data-theme="dark"] .modal-btn:hover { background-color: #444; }
 
+        /* Contenedor del Iframe */
         .iframe-wrapper {
             width: 100%;
             height: 60vh;
@@ -381,7 +387,7 @@
         let ultimosEscaneos = {}; 
 
         window.onload = function() {
-            // Descarga primero los empleados y luego pinta el historial con nombres reales
+            cargarHistorial();
             descargarListaEmpleados(); 
             
             const savedTheme = localStorage.getItem('theme_mode') || 'light';
@@ -396,25 +402,15 @@
                 .then(data => {
                     const lineas = data.split('\n');
                     for(let i = 1; i < lineas.length; i++) {
-                        const lineaLimpia = lineas[i].trim();
-                        if(!lineaLimpia) continue;
-                        
-                        const columnas = lineaLimpia.split(',');
+                        const columnas = lineas[i].split(',');
                         if(columnas.length >= 2) {
                             const dni = columnas[0].replace(/["\r]/g, '').trim();
                             const nombre = columnas[1].replace(/["\r]/g, '').trim();
-                            if(dni && nombre) {
-                                empleadosMap[dni] = nombre;
-                            }
+                            if(dni) empleadosMap[dni] = nombre;
                         }
                     }
-                    // Una vez cargado el diccionario, actualizamos el historial para mostrar nombres
-                    cargarHistorial();
                 })
-                .catch(err => {
-                    console.log("Error al cargar empleados:", err);
-                    cargarHistorial();
-                });
+                .catch(err => console.log("Se usará el DNI temporalmente."));
         }
 
         function emitirSonidoYVibracion() {
@@ -445,7 +441,6 @@
 
         function procesarAsistencia(dniLimpio) {
             const tiempoActual = Date.now();
-            // Busca el nombre en el diccionario de empleados descargado de la hoja USUARIOS
             const nombreMostrar = empleadosMap[dniLimpio] || dniLimpio;
 
             if (ultimosEscaneos[dniLimpio] && (tiempoActual - ultimosEscaneos[dniLimpio]) < 30000) {
@@ -552,6 +547,7 @@
             document.getElementById("home-screen").style.display = "block";
         }
 
+        /* --- Funciones para la Pantalla de Empleados --- */
         function mostrarEmpleados() {
             document.getElementById("home-screen").style.display = "none";
             document.getElementById("employees-screen").style.display = "block";
@@ -588,14 +584,15 @@
         }
 
         function verInfoApp() {
-            alert("App de control de asistencia");
+            alert("App creada por Fernando Carranza");
         }
 
         function cargarHistorial() {
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = ''; 
             
-            let historial = JSON.parse(localStorage.getItem('historial_qr_asistencia')) || [];
+            // AQUI CAMBIE EL NOMBRE DE LA MEMORIA PARA QUE EMPIECE EN BLANCO
+            let historial = JSON.parse(localStorage.getItem('historial_qr_santacelia')) || [];
             
             if (historial.length === 0) {
                 historyList.innerHTML = '<li class="history-item" style="color:#999; justify-content:center;">No hay escaneos recientes</li>';
@@ -605,25 +602,22 @@
             historial.forEach(item => {
                 const li = document.createElement('li');
                 li.className = 'history-item';
-                
-                // Mapea usando el DNI guardado para mostrar siempre el nombre actual
-                const nombreReal = empleadosMap[item.dni] || item.nombre || item.dni;
-                
-                li.innerHTML = `<span class="history-name">${nombreReal}</span> <span class="history-time">${item.hora}</span>`;
+                const textoMostrar = item.nombre || item.dni; 
+                li.innerHTML = `<span class="history-name">${textoMostrar}</span> <span class="history-time">${item.hora}</span>`;
                 historyList.appendChild(li);
             });
         }
 
         function agregarAHistorial(dni, nombre) {
-            let historial = JSON.parse(localStorage.getItem('historial_qr_asistencia')) || [];
+            // AQUI TAMBIEN USE LA MEMORIA LIMPIA
+            let historial = JSON.parse(localStorage.getItem('historial_qr_santacelia')) || [];
             const ahora = new Date();
             const horaStr = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             
-            const nombreParaGuardar = empleadosMap[dni] || nombre || dni;
-            historial.unshift({ dni: dni, nombre: nombreParaGuardar, hora: horaStr }); 
+            historial.unshift({ dni: dni, nombre: nombre, hora: horaStr }); 
             if(historial.length > 15) historial.pop();
             
-            localStorage.setItem('historial_qr_asistencia', JSON.stringify(historial));
+            localStorage.setItem('historial_qr_santacelia', JSON.stringify(historial));
             cargarHistorial();
         }
 
