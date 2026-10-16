@@ -381,7 +381,9 @@
         let ultimosEscaneos = {}; 
 
         window.onload = function() {
+            // Descarga primero los empleados y luego pinta el historial con nombres reales
             descargarListaEmpleados(); 
+            
             const savedTheme = localStorage.getItem('theme_mode') || 'light';
             document.body.setAttribute('data-theme', savedTheme);
             actualizarTextoBotonTema(savedTheme);
@@ -397,7 +399,6 @@
                         const lineaLimpia = lineas[i].trim();
                         if(!lineaLimpia) continue;
                         
-                        // Parseo seguro de CSV separando por comas
                         const columnas = lineaLimpia.split(',');
                         if(columnas.length >= 2) {
                             const dni = columnas[0].replace(/["\r]/g, '').trim();
@@ -407,7 +408,8 @@
                             }
                         }
                     }
-                    cargarHistorial(); // Cargar historial solo después de tener los nombres listos
+                    // Una vez cargado el diccionario, actualizamos el historial para mostrar nombres
+                    cargarHistorial();
                 })
                 .catch(err => {
                     console.log("Error al cargar empleados:", err);
@@ -443,6 +445,7 @@
 
         function procesarAsistencia(dniLimpio) {
             const tiempoActual = Date.now();
+            // Busca el nombre en el diccionario de empleados descargado de la hoja USUARIOS
             const nombreMostrar = empleadosMap[dniLimpio] || dniLimpio;
 
             if (ultimosEscaneos[dniLimpio] && (tiempoActual - ultimosEscaneos[dniLimpio]) < 30000) {
@@ -602,10 +605,11 @@
             historial.forEach(item => {
                 const li = document.createElement('li');
                 li.className = 'history-item';
-                // Traduce el DNI guardado al nombre actual usando empleadosMap
+                
+                // Mapea usando el DNI guardado para mostrar siempre el nombre actual
                 const nombreReal = empleadosMap[item.dni] || item.nombre || item.dni;
-                const textoMostrar = nombreReal; 
-                li.innerHTML = `<span class="history-name">${textoMostrar}</span> <span class="history-time">${item.hora}</span>`;
+                
+                li.innerHTML = `<span class="history-name">${nombreReal}</span> <span class="history-time">${item.hora}</span>`;
                 historyList.appendChild(li);
             });
         }
