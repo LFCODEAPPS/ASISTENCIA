@@ -381,9 +381,7 @@
         let ultimosEscaneos = {}; 
 
         window.onload = function() {
-            cargarHistorial();
             descargarListaEmpleados(); 
-            
             const savedTheme = localStorage.getItem('theme_mode') || 'light';
             document.body.setAttribute('data-theme', savedTheme);
             actualizarTextoBotonTema(savedTheme);
@@ -396,15 +394,25 @@
                 .then(data => {
                     const lineas = data.split('\n');
                     for(let i = 1; i < lineas.length; i++) {
-                        const columnas = lineas[i].split(',');
+                        const lineaLimpia = lineas[i].trim();
+                        if(!lineaLimpia) continue;
+                        
+                        // Parseo seguro de CSV separando por comas
+                        const columnas = lineaLimpia.split(',');
                         if(columnas.length >= 2) {
                             const dni = columnas[0].replace(/["\r]/g, '').trim();
                             const nombre = columnas[1].replace(/["\r]/g, '').trim();
-                            if(dni) empleadosMap[dni] = nombre;
+                            if(dni && nombre) {
+                                empleadosMap[dni] = nombre;
+                            }
                         }
                     }
+                    cargarHistorial(); // Cargar historial solo después de tener los nombres listos
                 })
-                .catch(err => console.log("Se usará el DNI temporalmente."));
+                .catch(err => {
+                    console.log("Error al cargar empleados:", err);
+                    cargarHistorial();
+                });
         }
 
         function emitirSonidoYVibracion() {
@@ -594,7 +602,9 @@
             historial.forEach(item => {
                 const li = document.createElement('li');
                 li.className = 'history-item';
-                const textoMostrar = item.nombre || item.dni; 
+                // Traduce el DNI guardado al nombre actual usando empleadosMap
+                const nombreReal = empleadosMap[item.dni] || item.nombre || item.dni;
+                const textoMostrar = nombreReal; 
                 li.innerHTML = `<span class="history-name">${textoMostrar}</span> <span class="history-time">${item.hora}</span>`;
                 historyList.appendChild(li);
             });
@@ -605,7 +615,8 @@
             const ahora = new Date();
             const horaStr = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             
-            historial.unshift({ dni: dni, nombre: nombre, hora: horaStr }); 
+            const nombreParaGuardar = empleadosMap[dni] || nombre || dni;
+            historial.unshift({ dni: dni, nombre: nombreParaGuardar, hora: horaStr }); 
             if(historial.length > 15) historial.pop();
             
             localStorage.setItem('historial_qr_asistencia', JSON.stringify(historial));
